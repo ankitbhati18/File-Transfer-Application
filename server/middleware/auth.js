@@ -13,7 +13,7 @@ const authenticate = async (req, res, next) => {
     const user = await User.findById(decoded.userId);
     
     if (!user) {
-      return res.status(401).json({ message: 'User  not found' });
+      return res.status(401).json({ message: 'User not found' });
     }
     
     req.user = { userId: user._id };
@@ -35,7 +35,7 @@ const authenticateSocket = async (socket, next) => {
     const user = await User.findById(decoded.userId);
     
     if (!user) {
-      return next(new Error('User  not found'));
+      return next(new Error('User not found'));
     }
     
     socket.user = user;

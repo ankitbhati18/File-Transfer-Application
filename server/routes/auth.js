@@ -11,12 +11,12 @@ router.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
     
     // Check if user already exists
-    const existingUser  = await User.findOne({
+    const existingUser = await User.findOne({
       $or: [{ email }, { username }]
     });
     
-    if (existingUser ) {
-      return res.status(400).json({ message: 'User  already exists' });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
     }
     
     // Create new user
@@ -31,7 +31,7 @@ router.post('/register', async (req, res) => {
     );
     
     res.status(201).json({
-      message: 'User  created successfully',
+      message: 'User created successfully',
       token,
       user: {
         id: user._id,

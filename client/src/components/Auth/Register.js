@@ -11,12 +11,46 @@ const Register = ({ onLogin }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState('');
+
+  const validatePassword = (password) => {
+    if (password.length < 6) return 'Password must be at least 6 characters long';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+    return 'Strong password';
+  };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+
+    if (name === 'password') {
+      setPasswordStrength(validatePassword(value));
+    }
+  };
+
+  const validateForm = () => {
+    if (formData.username.length < 3) {
+      setError('Username must be at least 3 characters long');
+      return false;
+    }
+    if (!formData.email.includes('@')) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -24,8 +58,7 @@ const Register = ({ onLogin }) => {
     setLoading(true);
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (!validateForm()) {
       setLoading(false);
       return;
     }
@@ -58,6 +91,7 @@ const Register = ({ onLogin }) => {
               value={formData.username}
               onChange={handleChange}
               required
+              minLength={3}
             />
           </div>
           <div className="form-group">
@@ -78,7 +112,13 @@ const Register = ({ onLogin }) => {
               value={formData.password}
               onChange={handleChange}
               required
+              minLength={6}
             />
+            {formData.password && (
+              <div className={`password-strength ${passwordStrength.includes('Strong') ? 'strong' : 'weak'}`}>
+                {passwordStrength}
+              </div>
+            )}
           </div>
           <div className="form-group">
             <input

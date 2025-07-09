@@ -15,6 +15,24 @@ const Login = ({ onLogin }) => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    // Clear error when user starts typing
+    if (error) setError('');
+  };
+
+  const validateForm = () => {
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!formData.email.includes('@')) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.password.trim()) {
+      setError('Password is required');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -22,12 +40,23 @@ const Login = ({ onLogin }) => {
     setLoading(true);
     setError('');
 
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await api.post('/auth/login', formData);
       const { token, user } = response.data;
       onLogin(token, user);
     } catch (error) {
-      setError(error.response?.data?.message || 'Login failed');
+      if (error.response?.status === 401) {
+        setError('Invalid email or password');
+      } else if (error.response?.status === 400) {
+        setError(error.response.data.message || 'Invalid credentials');
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -46,6 +75,7 @@ const Login = ({ onLogin }) => {
               value={formData.email}
               onChange={handleChange}
               required
+              autoComplete="email"
             />
           </div>
           <div className="form-group">
@@ -56,6 +86,7 @@ const Login = ({ onLogin }) => {
               value={formData.password}
               onChange={handleChange}
               required
+              autoComplete="current-password"
             />
           </div>
           {error && <div className="error-message">{error}</div>}

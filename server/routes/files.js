@@ -4,9 +4,18 @@ const path = require('path');
 const fs = require('fs');
 const FileTransfer = require('../models/FileTransfer');
 const { authenticate } = require('../middleware/auth');
-const { encryptFile } = require('../utils/encryption');
+const { encryptFile, decryptFile } = require('../utils/encryption');
 
 const router = express.Router();
+
+// Allowed file types
+const ALLOWED_FILE_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain', 'text/csv', 'application/json', 'application/xml',
+  'application/zip', 'application/x-rar-compressed',
+  'video/mp4', 'video/webm', 'audio/mpeg', 'audio/wav'
+];
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -26,11 +35,14 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Add file type restrictions if needed
-    cb(null, true);
+    if (ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('File type not allowed'), false);
+    }
   }
 });
 
@@ -39,6 +51,12 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
+    }
+    
+    // Validate file size
+    if (req.file.size > 50 * 1024 * 1024) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ message: 'File size exceeds 50MB limit' });
     }
     
     // Encrypt the uploaded file
@@ -58,7 +76,39 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
       }
     });
   } catch (error) {
+    // Clean up file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     res.status(500).json({ message: 'Upload failed', error: error.message });
+  }
+});
+
+// Download file
+router.get('/download/:fileId', authenticate, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const filePath = path.join('uploads', fileId + '.encrypted');
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+    
+    // Decrypt file
+    const decryptedPath = await decryptFile(filePath);
+    
+    // Send file
+    res.download(decryptedPath, (err) => {
+      // Clean up decrypted file after sending
+      if (fs.existsSync(decryptedPath)) {
+        fs.unlinkSync(decryptedPath);
+      }
+      if (err) {
+        console.error('Download error:', err);
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Download failed', error: error.message });
   }
 });
 
@@ -86,6 +136,10 @@ router.post('/record-transfer', authenticate, async (req, res) => {
   try {
     const { recipientId, fileName, fileSize, fileType } = req.body;
     
+    if (!recipientId || !fileName || !fileSize || !fileType) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    
     const transfer = new FileTransfer({
       sender: req.user.userId,
       recipient: recipientId,
@@ -103,6 +157,22 @@ router.post('/record-transfer', authenticate, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete file
+router.delete('/delete/:fileId', authenticate, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const filePath = path.join('uploads', fileId + '.encrypted');
+    
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    res.json({ message: 'File deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Delete failed', error: error.message });
   }
 });
 

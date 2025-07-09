@@ -3,12 +3,12 @@ const mongoose = require('mongoose');
 const fileTransferSchema = new mongoose.Schema({
   sender: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User ',
+    ref: 'User',
     required: true
   },
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User ',
+    ref: 'User',
     required: true
   },
   fileName: {
