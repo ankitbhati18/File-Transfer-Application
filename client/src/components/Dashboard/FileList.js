@@ -1,4 +1,5 @@
 import React from 'react';
+import api from '../services/api';
 
 const FileList = ({ transfers }) => {
   const formatDate = (date) => {
@@ -22,10 +23,28 @@ const FileList = ({ transfers }) => {
     }
   };
 
+  const handleDownload = async (transferId, fileName) => {
+    alert("File - Downloaded");
+    try {
+      const response = await api.get(`/files/download/${transferId}`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'downloaded-file';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+
   return (
     <div className="file-list-container">
       <h3>Transfer History</h3>
-      
+
       {transfers.length === 0 ? (
         <div className="empty-state">
           <p>No file transfers yet</p>
@@ -41,22 +60,32 @@ const FileList = ({ transfers }) => {
                     {formatFileSize(transfer.fileSize)} • {transfer.fileType}
                   </div>
                 </div>
-                
+
                 <div className="transfer-details">
                   <div className="participants">
                     <span className="sender">From: {transfer.sender.username}</span>
                     <span className="recipient">To: {transfer.recipient.username}</span>
                   </div>
-                  
+
                   <div className="transfer-meta">
                     <span className="date">{formatDate(transfer.createdAt)}</span>
-                    <span 
+                    <span
                       className="status"
                       style={{ color: getStatusColor(transfer.status) }}
                     >
                       {transfer.status.toUpperCase()}
                     </span>
                   </div>
+                </div>
+
+                {/* Download Button */}
+                <div className="download-section">
+                  <button
+                    className="download-btn"
+                    onClick={() => handleDownload(transfer._id, transfer.fileName)}
+                  >
+                    Download
+                  </button>
                 </div>
               </div>
             </div>

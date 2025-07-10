@@ -9,6 +9,9 @@ const TransferProgress = ({ transfers }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Removed the useEffect hook that triggered downloads.
+  // Download logic is handled in Dashboard.js based on 'transfer-finished' event.
+
   return (
     <div className="transfer-progress-container">
       <h3>Active Transfers</h3>
@@ -39,6 +42,7 @@ const TransferProgress = ({ transfers }) => {
               </div>
               
               <div className="transfer-status">
+                {/* Display status based on progress */}
                 {transfer.progress === 100 ? 'Completed' : 'Transferring...'}
               </div>
             </div>

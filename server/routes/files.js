@@ -105,5 +105,84 @@ router.post('/record-transfer', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+// Decryption utility
+const { decryptFile } = require('../utils/encryption');
+
+router.get('/download/:transferId', authenticate, async (req, res) => {
+  try {
+    const { transferId } = req.params;
+    const transfer = await FileTransfer.findById(transferId)
+      .populate('sender', 'username')
+      .populate('recipient', 'username');
+
+    if (!transfer) {
+      return res.status(404).json({ message: 'Transfer not found' });
+    }
+
+    const userId = req.user.userId;
+    if (
+      transfer.sender._id.toString() !== userId &&
+      transfer.recipient._id.toString() !== userId
+    ) {
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    const encryptedPath = path.join(__dirname, '..', 'uploads', transfer.fileName); // adjust if needed
+    const decryptedPath = await decryptFile(encryptedPath); // returns temp decrypted file path
+
+    res.download(decryptedPath, transfer.fileName, (err) => {
+      if (err) {
+        console.error('Download error:', err);
+      }
+      // Optionally delete the temp decrypted file after download
+      fs.unlink(decryptedPath, () => {});
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error during download' });
+  }
+});
+router.get('/download/:id', authenticate, async (req, res) => {
+  try {
+    const transfer = await FileTransfer.findById(req.params.id);
+
+    if (!transfer) {
+      return res.status(404).json({ message: 'Transfer not found' });
+    }
+
+    const filePath = path.join(__dirname, '..', 'uploads', transfer.fileName); // Adjust if needed
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
+
+    res.download(filePath, transfer.fileName);
+  } catch (error) {
+    res.status(500).json({ message: 'Error downloading file', error: error.message });
+  }
+});
+
+// Update transfer status
+router.put('/transfer-status/:id', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const transfer = await FileTransfer.findById(req.params.id);
+
+    if (!transfer) {
+      return res.status(404).json({ message: 'Transfer not found' });
+    }
+
+    // Only allow recipient to update status
+    if (transfer.recipient.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Unauthorized to update this transfer' });
+    }
+
+    transfer.status = status;
+    await transfer.save();
+
+    res.json({ message: 'Transfer status updated', transfer });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating transfer status', error: error.message });
+  }
+});
 
 module.exports = router;
